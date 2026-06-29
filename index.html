@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小學數學比賽即時計分板 (年級完全獨立版)</title>
+    <title>小學數學比賽即時計分板 (完整除錯版)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.core.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
@@ -11,11 +11,14 @@
         
         header { text-align: center; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; padding: 15px 25px; border-radius: 12px; border: 2px solid #e9ecef; }
         header h1 { font-size: 1.8rem; color: #2c3e50; }
-        .header-controls { display: flex; gap: 15px; align-items: center; }
+        .header-controls { display: flex; gap: 10px; align-items: center; }
 
         .grade-select { background-color: #ffffff; color: #2c3e50; font-size: 1.1rem; font-weight: bold; padding: 8px 12px; border: 2px solid #3498db; border-radius: 6px; cursor: pointer; }
         .btn-matrix-toggle { background-color: #9b59b6; color: white; font-size: 1.1rem; font-weight: bold; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px #8e44ad; }
         .btn-matrix-toggle:hover { background-color: #8e44ad; }
+        
+        .btn-end-game { background-color: #e67e22; color: white; font-size: 1.1rem; font-weight: bold; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px #d35400; }
+        .btn-end-game:hover { background-color: #d35400; }
 
         .control-panel { background: #f8f9fa; padding: 12px; border-radius: 10px; text-align: center; border: 2px solid #e9ecef; }
         .stage-btn { background-color: #e2e8f0; color: #4a5568; padding: 8px 16px; margin: 0 5px; font-size: 1rem; border-radius: 5px; border: 1px solid #cbd5e0; cursor: pointer; font-weight: bold; }
@@ -56,13 +59,11 @@
         .btn-reset { background-color: #718096; font-size: 1rem; padding: 8px 20px; border: none; border-radius: 5px; color: white; cursor: pointer; box-shadow: 0 3px #4a5568; font-weight: bold; }
         footer { text-align: center; margin-top: 10px; }
 
-        /* 彈出式總分表及結算表共通樣式 */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background-color: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 1100px; max-height: 85vh; overflow-y: auto; box-shadow: 0 5px 25px rgba(0,0,0,0.5); position: relative; }
         .close-modal { position: absolute; top: 15px; right: 20px; font-size: 2.2rem; cursor: pointer; color: #aaa; padding: 5px; }
         .close-modal:hover { color: #222; }
         
-        /* 彈窗頂部工具列結構 */
         .modal-header-bar { display: flex; align-items: center; justify-content: flex-start; gap: 20px; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 15px; padding-right: 40px; flex-wrap: wrap; }
         .modal-title { font-size: 1.8rem; color: #2c3e50; font-weight: bold; }
         .btn-excel { background-color: #1f7246; color: white; font-size: 1rem; font-weight: bold; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px #134f2f; display: flex; align-items: center; gap: 6px; }
@@ -77,7 +78,6 @@
         .question-box.correct { background-color: #2cbd6a; border-color: #229a54; }
         .question-box.wrong { background-color: #e53e3e; border-color: #c53030; }
 
-        /* 🏆 頒獎結算彈窗專用樣式 */
         .win-modal-content { text-align: center; max-width: 650px; padding: 40px; border: 5px solid #f1c40f; }
         .trophy { font-size: 5rem; margin-bottom: 10px; animation: bounce 2s infinite; }
         .congrat-text { font-size: 2.2rem; color: #d35400; font-weight: bold; margin-bottom: 15px; }
@@ -88,7 +88,6 @@
         .rank-item.winner-item { color: #e67e22; background-color: #fff9db; border-radius: 6px; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
 
-        /* 行動裝置適應優化 */
         @media (max-width: 768px) {
             .scoreboard { grid-template-columns: repeat(2, 1fr); gap: 10px; }
             .modal-header-bar { gap: 10px; }
@@ -102,6 +101,7 @@
         <h1>數學比賽計分板</h1>
         <div class="header-controls">
             <button class="btn-matrix-toggle" onclick="openMatrixModal()">顯示題目對錯總分表</button>
+            <button class="btn-end-game" onclick="triggerManualGameEnd()">🏁 結束當前年級比賽並結算</button>
             <select id="gradeSelect" class="grade-select" onchange="switchGrade()">
                 <option value="3">三年級 (3A-3D)</option>
                 <option value="4">四年級 (4A-4D)</option>
@@ -113,8 +113,8 @@
     <div class="control-panel">
         <span>目前比賽階段：</span>
         <button class="stage-btn active" id="btn-p1" onclick="setStage('p1')">第一部份 (加20/答錯0)</button>
-        <button class="stage-btn" id="btn-p2" onclick="setStage('p2')">第二部份 (加10/答錯0)</button>
-        <button class="stage-btn" id="btn-p3" onclick="setStage('p3')">第三部份 (加20/加10/答錯0)</button>
+        <button class="stage-btn" id="btn-p3" onclick="setStage('p3')">第二部份 (加20/加10/答錯0)</button>
+        <button class="stage-btn" id="btn-p2" onclick="setStage('p2')">第三部份 (加10/答錯0)</button>
         <button class="stage-btn" id="btn-p4" onclick="setStage('p4')">第四部份 (共享搶答20題)</button>
     </div>
 
@@ -133,8 +133,8 @@
                 <tr>
                     <th>班別</th>
                     <th id="th-p1" class="col-active">第一部份</th>
-                    <th id="th-p2">第二部份</th>
-                    <th id="th-p3">第三部份</th>
+                    <th id="th-p3">第二部份</th>
+                    <th id="th-p2">第三部份</th>
                     <th id="th-p4">第四部份</th>
                     <th>總分</th>
                 </tr>
@@ -142,22 +142,22 @@
             <tbody>
                 <tr id="row-A">
                     <td><strong class="label-class" data-letter="A">3A</strong></td>
-                    <td id="table-A-p1" class="col-active">0</td><td id="table-A-p2">0</td><td id="table-A-p3">0</td><td id="table-A-p4">0</td>
+                    <td id="table-A-p1" class="col-active">0</td><td id="table-A-p3">0</td><td id="table-A-p2">0</td><td id="table-A-p4">0</td>
                     <td id="table-A-total" class="total-highlight">0</td>
                 </tr>
                 <tr id="row-B">
                     <td><strong class="label-class" data-letter="B">3B</strong></td>
-                    <td id="table-B-p1" class="col-active">0</td><td id="table-B-p2">0</td><td id="table-B-p3">0</td><td id="table-B-p4">0</td>
+                    <td id="table-B-p1" class="col-active">0</td><td id="table-B-p3">0</td><td id="table-B-p2">0</td><td id="table-B-p4">0</td>
                     <td id="table-B-total" class="total-highlight">0</td>
                 </tr>
                 <tr id="row-C">
                     <td><strong class="label-class" data-letter="C">3C</strong></td>
-                    <td id="table-C-p1" class="col-active">0</td><td id="table-C-p2">0</td><td id="table-C-p3">0</td><td id="table-C-p4">0</td>
+                    <td id="table-C-p1" class="col-active">0</td><td id="table-C-p3">0</td><td id="table-C-p2">0</td><td id="table-C-p4">0</td>
                     <td id="table-C-total" class="total-highlight">0</td>
                 </tr>
                 <tr id="row-D">
                     <td><strong class="label-class" data-letter="D">3D</strong></td>
-                    <td id="table-D-p1" class="col-active">0</td><td id="table-D-p2">0</td><td id="table-D-p3">0</td><td id="table-D-p4">0</td>
+                    <td id="table-D-p1" class="col-active">0</td><td id="table-D-p3">0</td><td id="table-D-p2">0</td><td id="table-D-p4">0</td>
                     <td id="table-D-total" class="total-highlight">0</td>
                 </tr>
             </tbody>
@@ -212,14 +212,15 @@
     </footer>
 
     <script>
-        const stageMaxQuestions = { p1: 10, p2: 5, p3: 4, p4: 20 };
-        const stageNames = { p1: '第一部份', p2: '第二部份', p3: '第三部份', p4: '第四部份' };
+        const stageMaxQuestions = { p1: 10, p2: 10, p3: 4, p4: 20 };
+        const stageNames = { p1: '第一部份', p3: '第二部份', p2: '第三部份', p4: '第四部份' };
 
         const gameData = {};
         ['3', '4', '5'].forEach(grade => {
             gameData[grade] = {
                 currentStage: 'p1',
                 scores: { 'A': {p1:0, p2:0, p3:0, p4:0}, 'B': {p1:0, p2:0, p3:0, p4:0}, 'C': {p1:0, p2:0, p3:0, p4:0}, 'D': {p1:0, p2:0, p3:0, p4:0} },
+                // 🛠️ 已修復：補上歷史紀錄中缺失的 p2 屬性，避免計分功能卡死
                 history: {
                     'A': { p1: [], p2: [], p3: [] }, 'B': { p1: [], p2: [], p3: [] },
                     'C': { p1: [], p2: [], p3: [] }, 'D': { p1: [], p2: [], p3: [] }
@@ -227,7 +228,7 @@
                 p4CurrentQ: 0, 
                 p4History: [],
                 p4QuestionLocked: false,
-                isFinished: false // 🌟 核心修正：加入獨立年級的完賽狀態狀態鎖
+                isFinished: false 
             };
             for(let i=0; i<20; i++){
                 gameData[grade].p4History.push({
@@ -261,7 +262,7 @@
 
         function renderStageStyles(currentStage) {
             const grade = getSelectedGrade();
-            const stages = ['p1', 'p2', 'p3', 'p4'];
+            const stages = ['p1', 'p3', 'p2', 'p4'];
             stages.forEach(s => {
                 const btn = document.getElementById(`btn-${s}`);
                 const th = document.getElementById(`th-${s}`);
@@ -270,10 +271,11 @@
                 letters.forEach(l => document.getElementById(`table-${l}-${s}`).classList.remove('col-active', 'col-finished'));
 
                 if (s === currentStage) {
-                    btn.classList.add('active'); th.classList.add('col-active');
+                    btn.classList.add('active');
+                    if (th) th.classList.add('col-active');
                     letters.forEach(l => document.getElementById(`table-${l}-${s}`).classList.add('col-active'));
                 } else if (stages.indexOf(s) < stages.indexOf(currentStage)) {
-                    th.classList.add('col-finished');
+                    if (th) th.classList.add('col-finished');
                     letters.forEach(l => document.getElementById(`table-${l}-${s}`).classList.add('col-finished'));
                 }
             });
@@ -314,7 +316,7 @@
 
             if(currentQIdx >= 20) {
                 document.getElementById('p4StatusPanel').innerHTML = "🎉 第四部份比賽已全部結束！";
-                nextBtn.style.display = 'none';
+                if(nextBtn) nextBtn.style.display = 'none';
                 letters.forEach(letter => {
                     document.getElementById(`btn-add20-${letter}`).disabled = true;
                     document.getElementById(`btn-sub10-${letter}`).disabled = true;
@@ -360,7 +362,6 @@
 
             if (gameData[grade].isFinished) return;
 
-            // --- 第一至第三部份 ---
             if (stage !== 'p4') {
                 const currentHistory = gameData[grade].history[letter][stage];
                 const maxQ = stageMaxQuestions[stage];
@@ -384,7 +385,6 @@
                 return;
             }
 
-            // --- 第四部份 (共享搶答) ---
             let currentQIdx = gameData[grade].p4CurrentQ;
             if (currentQIdx >= 20) return;
             if (gameData[grade].p4QuestionLocked) return;
@@ -407,8 +407,8 @@
                 qData.classScores[letter] = points; 
                 qData.attempts += 1;
                 
-                let curScore = gameData[grade].scores[letter].p4;
-                gameData[grade].scores[letter].p4 = Math.max(0, curScore - 10);
+                // 容許顯示並扣減至負分數值
+                gameData[grade].scores[letter].p4 += points; // points 為 -10
                 
                 if (qData.attempts >= 2) {
                     gameData[grade].p4QuestionLocked = true;
@@ -432,41 +432,66 @@
             document.getElementById(`score-${letter}`).innerText = total;
         }
 
-        // 🌟 核心修正：將年級判定完全隔離
         function checkAndTriggerGameEnd(grade) {
             const data = gameData[grade];
-            if (data.isFinished) return; // 若該年級已結算過，直接攔截
+            if (data.isFinished) return;
 
             let p123Finished = true;
             letters.forEach(l => {
-                if((data.history[l].p1.length < 10) || (data.history[l].p2.length < 5) || (data.history[l].p3.length < 4)) {
+                if((data.history[l].p1.length < stageMaxQuestions.p1) || 
+                   (data.history[l].p2.length < stageMaxQuestions.p2) || 
+                   (data.history[l].p3.length < stageMaxQuestions.p3)) {
                     p123Finished = false;
                 }
             });
             const p4Finished = data.p4CurrentQ >= 20;
 
             if (p123Finished && p4Finished) {
-                data.isFinished = true; // 設定該年級完賽狀態
-
-                const finalRank = letters.map(l => {
-                    const s = data.scores[l];
-                    const total = s.p1 + s.p2 + s.p3 + s.p4;
-                    return { classLabel: `${grade}${l}`, score: total };
-                }).sort((a, b) => b.score - a.score);
-
-                document.getElementById('winClassName').innerText = `${finalRank[0].classLabel} 班`;
-                
-                const rankListEl = document.getElementById('finalRankList');
-                rankListEl.innerHTML = '';
-                finalRank.forEach((item, idx) => {
-                    const row = document.createElement('div');
-                    row.className = `rank-item ${idx === 0 ? 'winner-item' : ''}`;
-                    row.innerHTML = `<span>第 ${idx + 1} 名: ${item.classLabel} 班</span> <span>${item.score} 分</span>`;
-                    rankListEl.appendChild(row);
-                });
-
-                document.getElementById('winnerModal').style.display = 'flex';
+                showWinnerModal(grade);
             }
+        }
+
+        function triggerManualGameEnd() {
+            const grade = getSelectedGrade();
+            if (gameData[grade].isFinished) {
+                showWinnerModal(grade); 
+                return;
+            }
+            if (confirm(`🏁 確定要提前結束【${grade}年級】的比賽並進行最終分數結算嗎？\n(按下後將會鎖定本年級的計分按鈕)`)) {
+                showWinnerModal(grade);
+            }
+        }
+
+        function showWinnerModal(grade) {
+            const data = gameData[grade];
+            data.isFinished = true; 
+
+            letters.forEach(letter => {
+                const container = document.getElementById(`btn-container-${letter}`);
+                if(container) {
+                    const btns = container.getElementsByTagName('button');
+                    for(let i=0; i<btns.length; i++) btns[i].disabled = true;
+                }
+            });
+
+            const finalRank = letters.map(l => {
+                const s = data.scores[l];
+                const total = s.p1 + s.p2 + s.p3 + s.p4;
+                return { classLabel: `${grade}${l}`, score: total };
+            }).sort((a, b) => b.score - a.score);
+
+            document.getElementById('winClassName').innerText = `${finalRank[0].classLabel} 班`;
+            
+            const rankListEl = document.getElementById('finalRankList');
+            rankListEl.innerHTML = '';
+            finalRank.forEach((item, idx) => {
+                const row = document.createElement('div');
+                row.className = `rank-item ${idx === 0 ? 'winner-item' : ''}`;
+                row.innerHTML = `<span>第 ${idx + 1} 名: ${item.classLabel} 班</span> <span>${item.score} 分</span>`;
+                rankListEl.appendChild(row);
+            });
+
+            document.getElementById('winnerModal').style.display = 'flex';
         }
 
         function closeWinnerModal() { document.getElementById('winnerModal').style.display = 'none'; }
@@ -477,7 +502,7 @@
             const body = document.getElementById('matrixModalBody');
             body.innerHTML = ''; 
 
-            ['p1', 'p2', 'p3'].forEach(stage => {
+            ['p1', 'p3', 'p2'].forEach(stage => {
                 const section = document.createElement('div');
                 section.className = 'matrix-section';
                 
@@ -562,8 +587,8 @@
 
             const headers = ['班別'];
             for(let i=1; i<=10; i++) headers.push(`第一部份_第${i}題`);
-            for(let i=1; i<=5;  i++) headers.push(`第二部份_第${i}題`);
-            for(let i=1; i<=4;  i++) headers.push(`第三部份_第${i}題`);
+            for(let i=1; i<=4;  i++) headers.push(`第二部份_第${i}題`);
+            for(let i=1; i<=10; i++) headers.push(`第三部份_第${i}題`);
             for(let i=1; i<=20; i++) headers.push(`第四部份_第${i}題`);
             headers.push('第一部份_小計', '第二部份_小計', '第三部份_小計', '第四部份_小計', '最終總積分');
 
@@ -577,12 +602,12 @@
                     const q = data.history[l].p1[i];
                     row.push(q ? q.score : '');
                 }
-                for(let i=0; i<5; i++) {
-                    const q = data.history[l].p2[i];
-                    row.push(q ? q.score : '');
-                }
                 for(let i=0; i<4; i++) {
                     const q = data.history[l].p3[i];
+                    row.push(q ? q.score : '');
+                }
+                for(let i=0; i<10; i++) {
+                    const q = data.history[l].p2[i];
                     row.push(q ? q.score : '');
                 }
                 for(let i=0; i<20; i++) {
@@ -593,7 +618,7 @@
 
                 const s = data.scores[l];
                 const total = s.p1 + s.p2 + s.p3 + s.p4;
-                row.push(s.p1, s.p2, s.p3, s.p4, total);
+                row.push(s.p1, s.p3, s.p2, s.p4, total);
 
                 rowsData.push(row);
             });
@@ -617,12 +642,13 @@
             if (confirm(`⚠️ 確定要將【${grade}年級】的所有得分、進度與對錯紀錄重設嗎？`)) {
                 letters.forEach(letter => {
                     gameData[grade].scores[letter] = { p1: 0, p2: 0, p3: 0, p4: 0 };
+                    // 🛠️ 已修復：重設時同樣完整保留 p2 欄位
                     gameData[grade].history[letter] = { p1: [], p2: [], p3: [] };
                     updateDisplay(letter);
                 });
                 gameData[grade].p4CurrentQ = 0;
                 gameData[grade].p4QuestionLocked = false;
-                gameData[grade].isFinished = false; // 重設完賽鎖
+                gameData[grade].isFinished = false; 
                 gameData[grade].p4History = [];
                 for(let i=0; i<20; i++){
                     gameData[grade].p4History.push({
